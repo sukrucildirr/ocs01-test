@@ -16,12 +16,14 @@ rust cli for testing ocs01 smart contract
 -   windows
 
 **install rust (if not installed)**
+
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 ```
 
 **build from source**
+
 ```bash
 git clone https://github.com/octra-labs/ocs01-test.git
 cd ocs01-test
@@ -29,16 +31,19 @@ cargo build --release
 ```
 
 **setup**
+
 ```bash
 # copy contract interface
 cp EI/exec_interface.json .
 ```
 
 **required files in same directory**
+
 -   wallet.json - create with your credentials
 -   exec_interface.json - copy from EI/ folder
 
 **run**
+
 you must copy the release binary to your cli folder and also copy the EI file (execution interface file) to the same location 
 
 the release binary is located in this folder after successful build. 
