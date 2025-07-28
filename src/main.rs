@@ -86,39 +86,38 @@
  }
 
  fn view_call(
-     client: &Client,
-     api_url: &str,
-     contract: &str,
-     method: &str,
-     params: &[String],
-     caller: &str
- ) -> Result<Option<String>> {
-     let response: serde_json::Value = api_call(
-         client,
-         "POST",
-         &format!("{}/contract/call-view", api_url),
-         Some(json!({
-             "contract": contract,
-             "method": method,
-             "params": params,
-             "caller": caller
-         }))
-     )?;
-     
-     // Debugging: Print the full response if status is not success or result is not a string
-     if response["status"] == "success" {
-         if let Some(result_str) = response["result"].as_str() {
-             Ok(Some(result_str.to_string()))
-         } else {
-             // If 'result' field exists but is not a string, or is missing entirely
-             eprintln!("Warning: API response 'result' field is not a string or missing for view call. Full response: {}", response);
-             Ok(None)
-         }
-     } else {
-         eprintln!("API call status not 'success'. Full response: {}", response);
-         Ok(None) // Or you might want to return an error here depending on desired behavior
-     }
- }
+    client: &Client,
+    api_url: &str,
+    contract: &str,
+    method: &str,
+    params: &[String],
+    caller: &str
+) -> Result<Option<String>> {
+    let response: serde_json::Value = api_call(
+        client,
+        "POST",
+        &format!("{}/contract/call-view", api_url),
+        Some(json!({
+            "contract": contract,
+            "method": method,
+            "params": params,
+            "caller": caller
+        }))
+    )?;
+
+    println!("DEBUG response = {}", response); // <--- Add this line
+
+    Ok(if response["status"] == "success" {
+        // Try handling boolean or number result
+        if let Some(result_str) = response["result"].as_str() {
+            Some(result_str.to_string())
+        } else {
+            Some(response["result"].to_string()) // fallback to raw JSON value
+        }
+    } else {
+        None
+    })
+}
 
  fn call_contract(
      client: &Client,
