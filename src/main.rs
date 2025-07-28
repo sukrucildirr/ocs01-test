@@ -243,8 +243,6 @@ fn main() -> Result<()> {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
     Ok(Some(result)) => println!("\nresult: {}", result),
     Ok(None) => println!("\nresult: none"),
-    Err(e) => println!("error: {}", e),
-}
                             Err(e) => println!("error: {}", e),
                         }
                     }
