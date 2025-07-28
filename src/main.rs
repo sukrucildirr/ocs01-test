@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use serde_json::json;
-use serde_json::Value;
 use std::{collections::HashMap, fs, io::{self, Write}, time::{SystemTime, UNIX_EPOCH}};
 use base64::{Engine as _, engine::general_purpose};
 use ed25519_dalek::{Signer, SigningKey as Ed25519SigningKey};
@@ -105,43 +104,20 @@ fn view_call(
             "caller": caller
         }))
     )?;
-
-    // 🔥 DEBUG: Print the full response
-    eprintln!("🔍 DEBUG: Full API response for '{}' ->", method);
-    eprintln!("{}", serde_json::to_string_pretty(&response).unwrap());
-
-    if response["status"] == "success" {
-        let result_value = &response["result"];
-
-        eprintln!("🔍 result type: {:?}", result_value);
-        eprintln!("🔍 result .to_string() = {}", result_value.to_string());
-
-        let clean_result = match result_value {
-            Value::String(s) => {
-                // If it looks like a number or bool, show it raw
-                if s.parse::<f64>().is_ok() {
-                    s.clone()
-                } else if s == "true" || s == "false" {
-                    s.clone()
-                } else {
-                    s.clone() // just pass through
-                }
-            }
-            Value::Number(n) => n.to_string(),
-            Value::Bool(b) => b.to_string(),
-            Value::Null => "null".to_string(),
-            _ => result_value.to_string(), // fallback
-        };
-
-        Ok(Some(clean_result))
+    
+    Ok(if response["status"] == "success" {
+        match &response["result"] {
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            serde_json::Value::Bool(b) => Some(b.to_string()),
+            serde_json::Value::Null => Some("null".to_string()),
+            serde_json::Value::Array(arr) => Some(format!("{:?}", arr)),
+            serde_json::Value::Object(obj) => Some(format!("{:?}", obj)),
+        }
     } else {
-        let err_msg = response["message"]
-            .as_str()
-            .or_else(|| response["error"].as_str())
-            .unwrap_or("unknown error");
-        eprintln!("❌ Call failed: {}", err_msg);
-        Ok(None)
-    }
+        println!("API call failed: {:?}", response);
+        None
+    })
 }
 
 fn call_contract(
@@ -273,7 +249,7 @@ fn main() -> Result<()> {
                 match method.method_type.as_str() {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                            Ok(result) => println!("\nresult: {:?}", result.unwrap_or_else(|| "none".to_string())),
+                            Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
                             Err(e) => println!("error: {}", e),
                         }
                     }
