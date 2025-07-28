@@ -107,14 +107,30 @@ fn view_call(
     )?;
 
     if response["status"] == "success" {
-        let result = match &response["result"] {
-            Value::String(s) => s.clone(),           // Unwrap string: "120" → 120
-            Value::Number(n) => n.to_string(),      // 120 → "120"
-            Value::Bool(b) => b.to_string(),        // true → "true"
+        let clean_result = match &response["result"] {
+            // Case 1: It's a JSON string — but might be a number/bool in disguise
+            Value::String(s) => {
+                // Try to parse as number
+                if s.parse::<f64>().is_ok() {
+                    s.clone() // e.g. "120" → "120" (but don't add quotes)
+                } else if s == "true" || s == "false" {
+                    s.clone() // e.g. "true" → "true"
+                } else {
+                    // It's a real string, maybe wrap in quotes?
+                    // Or just show raw? Let's show raw for now.
+                    s.clone()
+                }
+            }
+            // Case 2: It's a JSON number (e.g. 120)
+            Value::Number(n) => n.to_string(),
+            // Case 3: Boolean
+            Value::Bool(b) => b.to_string(),
+            // Case 4: Null
             Value::Null => "null".to_string(),
-            other => other.to_string(),             // Fallback (arrays, objects)
+            // Case 5: Arrays, objects — convert to compact JSON
+            other => other.to_string(), // e.g. "[1,2,3]"
         };
-        Ok(Some(result))
+        Ok(Some(clean_result))
     } else {
         let err_msg = response["message"]
             .as_str()
