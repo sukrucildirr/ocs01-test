@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<Option<String>> {
+) -> Result<serde_json::Value> {
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -105,19 +105,11 @@ fn view_call(
         }))
     )?;
     
-    Ok(if response["status"] == "success" {
-        match &response["result"] {
-            serde_json::Value::String(s) => Some(s.clone()),
-            serde_json::Value::Number(n) => Some(n.to_string()),
-            serde_json::Value::Bool(b) => Some(b.to_string()),
-            serde_json::Value::Null => Some("null".to_string()),
-            serde_json::Value::Array(arr) => Some(format!("{:?}", arr)),
-            serde_json::Value::Object(obj) => Some(format!("{:?}", obj)),
-        }
+    if response["status"] == "success" {
+        Ok(response["result"].clone())
     } else {
-        println!("API call failed: {:?}", response);
-        None
-    })
+        bail!("view call failed: {}", response["error"].as_str().unwrap_or("unknown error"));
+    }
 }
 
 fn call_contract(
@@ -249,7 +241,13 @@ fn main() -> Result<()> {
                 match method.method_type.as_str() {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                            Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
+                            Ok(result) => {
+                                if result.is_null() {
+                                    println!("\nresult: none");
+                                } else {
+                                    println!("\nresult: {}", result);
+                                }
+                            },
                             Err(e) => println!("error: {}", e),
                         }
                     }
