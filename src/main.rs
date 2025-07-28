@@ -106,26 +106,7 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        let result_value = &response["result"];
-        let formatted_string = if result_value.is_string() {
-            // If the result is a JSON string (e.g., "hello"), its `to_string()`
-            // representation already includes the quotes (e.g., "\"hello\"").
-            result_value.to_string()
-        } else if result_value.is_boolean() {
-            // If the result is a JSON boolean (e.g., true), its `to_string()`
-            // representation does NOT include quotes (e.g., "true").
-            // We explicitly add quotes here.
-            format!("\"{}\"", result_value.to_string())
-        } else if result_value.is_number() {
-            // If the result is a JSON number (e.g., 5), its `to_string()`
-            // representation does NOT include quotes (e.g., "5").
-            // We want it without quotes, so use `to_string()` directly.
-            result_value.to_string()
-        } else {
-            // For null or other types, just convert to string.
-            result_value.to_string()
-        };
-        Some(formatted_string)
+        response["result"].as_str().map(|s| s.to_string())
     } else {
         None
     })
