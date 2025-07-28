@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<Option<String>> {
+) -> Result<Option<serde_json::Value>> {  // Change return type to Value
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -106,7 +106,7 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        Some(response["result"].to_string())
+        Some(response["result"].clone())  // Return the JSON value directly
     } else {
         None
     })
@@ -240,23 +240,21 @@ fn main() -> Result<()> {
                 
                 match method.method_type.as_str() {
                     "view" => {
-                        match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                            Ok(result) => println!("\nresult: {:?}", result.unwrap_or_else(|| "none".to_string())),
-                            Err(e) => println!("error: {}", e),
-                        }
-                    }
-                    "call" => {
-                        match call_contract(&client, &wallet.rpc, &sk, &wallet.addr, &interface.contract, &method.name, &params) {
-                            Ok(tx_hash) => {
-                                println!("\ntx: {}", tx_hash);
-                                if read_input("wait for confirmation? y/n: ").to_lowercase() == "y" {
-                                    print!("waiting");
-                                    io::stdout().flush()?;
-                                    match wait_tx(&client, &wallet.rpc, &tx_hash, 100) {
-                                        Ok(true) => println!("\nconfirmed"),
-                                        Ok(false) => println!("\ntimeout"),
-                                        Err(e) => println!("\nerror: {}", e),
-                                    }
+                        match view_call(&client, &wallet.rpc, &interface.contract, &method.name, ¶ms, &wallet.addr) {
+    Ok(Some(result)) => {
+        // Handle different result types
+        let display_result = if result.is_boolean() {
+            result.as_bool().unwrap().to_string()
+        } else if result.is_string() {
+            result.as_str().unwrap().to_string()
+        } else {
+            format!("{:?}", result)
+        };
+        println!("\nresult: {}", display_result);
+    },
+    Ok(None) => println!("\nresult: none"),
+    Err(e) => println!("\nerror: {}", e),
+}
                                 }
                             }
                             Err(e) => println!("error: {}", e),
