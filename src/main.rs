@@ -104,12 +104,20 @@ fn view_call(
             "caller": caller
         }))
     )?;
-    
-    Ok(if response["status"] == "success" {
-        response["result"].as_str().map(|s| s.to_string())
+
+    if response["status"] == "success" {
+        if let Some(raw_result) = response["result"].as_str() {
+            // Try to parse it again to remove escaped quotes
+            match serde_json::from_str::<String>(raw_result) {
+                Ok(inner) => Ok(Some(inner)),
+                Err(_) => Ok(Some(raw_result.to_string())), // fallback
+            }
+        } else {
+            Ok(None)
+        }
     } else {
-        None
-    })
+        Ok(None)
+    }
 }
 
 fn call_contract(
