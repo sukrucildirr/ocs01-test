@@ -106,8 +106,14 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        let result = response["result"].clone();
-        Some(result.to_string())
+        // Handle different types of results
+        match &response["result"] {
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            serde_json::Value::Bool(b) => Some(b.to_string()),
+            serde_json::Value::Null => Some("null".to_string()),
+            _ => Some(response["result"].to_string())
+        }
     } else {
         None
     })
@@ -242,7 +248,7 @@ fn main() -> Result<()> {
                 match method.method_type.as_str() {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                            Ok(result) => println!("nresult: {}", result.unwrap_or_else(|| "none".to_string())),
+                            Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
                             Err(e) => println!("error: {}", e),
                         }
                     }
