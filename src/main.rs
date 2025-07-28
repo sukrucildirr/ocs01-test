@@ -104,12 +104,18 @@ fn view_call(
             "caller": caller
         }))
     )?;
-    
-    Ok(if response["status"] == "success" {
-        response["result"].as_str().map(|s| s.to_string())
+
+    if response["status"] == "success" {
+        Ok(Some(response["result"].to_string()))
     } else {
-        None
-    })
+        let err_msg = response["message"]
+            .as_str()
+            .or_else(|| response["error"].as_str())
+            .unwrap_or("unknown error");
+        eprintln!("Call failed: {}", err_msg);
+        eprintln!("Response: {}", response);
+        Ok(None)
+    }
 }
 
 fn call_contract(
