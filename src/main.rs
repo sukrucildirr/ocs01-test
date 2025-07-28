@@ -104,20 +104,15 @@ fn view_call(
             "caller": caller
         }))
     )?;
-
-    if response["status"] == "success" {
-        if let Some(raw_result) = response["result"].as_str() {
-            // Try to parse it again to remove escaped quotes
-            match serde_json::from_str::<String>(raw_result) {
-                Ok(inner) => Ok(Some(inner)),
-                Err(_) => Ok(Some(raw_result.to_string())), // fallback
-            }
-        } else {
-            Ok(None)
-        }
+    
+    Ok(if response["status"] == "success" {
+        // Convert the result JSON value to a string representation
+        // and then trim any surrounding quotes that might be present.
+        let result_str = response["result"].to_string();
+        Some(result_str.trim_matches('"').to_string())
     } else {
-        Ok(None)
-    }
+        None
+    })
 }
 
 fn call_contract(
