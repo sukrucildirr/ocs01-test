@@ -106,7 +106,7 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        response["result"].as_str().map(|s| s.to_string())
+        Some(response["result"].to_string())
     } else {
         None
     })
