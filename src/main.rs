@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<Option<serde_json::Value>> {
+) -> Result<Option<String>> {
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -106,10 +106,7 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        // Try to parse the result as JSON first (in case it's a stringified JSON)
-        serde_json::from_str::<serde_json::Value>(response["result"].as_str().unwrap_or("null"))
-            .ok()  // If parsing fails, return the raw result
-            .or(Some(response["result"].clone()))
+        response["result"].as_str().map(|s| s.to_string())
     } else {
         None
     })
@@ -243,18 +240,23 @@ fn main() -> Result<()> {
                 
                 match method.method_type.as_str() {
                     "view" => {
-                        match view_call(&client, &wallet.rpc, &interface.contract, &method.name, ¶ms, &wallet.addr) {
-    Ok(Some(result)) => {
-        let display_result = match result {
-            serde_json::Value::String(s) => s,  // Already unescaped
-            serde_json::Value::Bool(b) => b.to_string(),
-            _ => result.to_string(),  // Fallback for numbers/objects
-        };
-        println!("\nresult: {}", display_result);
-    },
-    Ok(None) => println!("\nresult: none"),
-    Err(e) => println!("\nerror: {}", e),
-}
+                        match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
+                            Ok(result) => println!("\nresult: {:?}", result.unwrap_or_else(|| "none".to_string())),
+                            Err(e) => println!("error: {}", e),
+                        }
+                    }
+                    "call" => {
+                        match call_contract(&client, &wallet.rpc, &sk, &wallet.addr, &interface.contract, &method.name, &params) {
+                            Ok(tx_hash) => {
+                                println!("\ntx: {}", tx_hash);
+                                if read_input("wait for confirmation? y/n: ").to_lowercase() == "y" {
+                                    print!("waiting");
+                                    io::stdout().flush()?;
+                                    match wait_tx(&client, &wallet.rpc, &tx_hash, 100) {
+                                        Ok(true) => println!("\nconfirmed"),
+                                        Ok(false) => println!("\ntimeout"),
+                                        Err(e) => println!("\nerror: {}", e),
+                                    }
                                 }
                             }
                             Err(e) => println!("error: {}", e),
