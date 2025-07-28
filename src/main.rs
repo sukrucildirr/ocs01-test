@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde_json::json;
+use serde_json::Value;
 use std::{collections::HashMap, fs, io::{self, Write}, time::{SystemTime, UNIX_EPOCH}};
 use base64::{Engine as _, engine::general_purpose};
 use ed25519_dalek::{Signer, SigningKey as Ed25519SigningKey};
@@ -93,7 +94,7 @@ fn view_call(
     params: &[String],
     caller: &str
 ) -> Result<Option<String>> {
-    let response: serde_json::Value = api_call(
+    let response: Value = api_call(
         client,
         "POST",
         &format!("{}/contract/call-view", api_url),
@@ -106,7 +107,14 @@ fn view_call(
     )?;
 
     if response["status"] == "success" {
-        Ok(Some(response["result"].to_string()))
+        let result = match &response["result"] {
+            Value::String(s) => s.clone(),           // Unwrap string: "120" → 120
+            Value::Number(n) => n.to_string(),      // 120 → "120"
+            Value::Bool(b) => b.to_string(),        // true → "true"
+            Value::Null => "null".to_string(),
+            other => other.to_string(),             // Fallback (arrays, objects)
+        };
+        Ok(Some(result))
     } else {
         let err_msg = response["message"]
             .as_str()
