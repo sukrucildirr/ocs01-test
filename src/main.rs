@@ -151,7 +151,7 @@ fn call_contract(
     tx.insert("ou", "1".to_string());
     tx.insert("timestamp", timestamp.to_string());
     
-    let signature = sign_tx(sk, &tx);
+    let signature = sk.sign(blob.as_bytes());
     let public_key = general_purpose::STANDARD.encode(sk.verifying_key().to_bytes());
     
     let response: serde_json::Value = api_call(
@@ -259,6 +259,22 @@ fn main() -> Result<()> {
                 
                 match method.method_type.as_str() {
                     "view" => {
+                        // Add a specific warning for linearInterpolate if x0 == x1
+                        if method.name == "linearInterpolate" {
+                            if let (Ok(x0), Ok(x1)) = (params[0].parse::<f64>(), params[2].parse::<f64>()) {
+                                if x0 == x1 {
+                                    println!("\nWarning: For 'linearInterpolate', x0 cannot be equal to x1 to avoid division by zero in the contract.");
+                                    println!("Please try again with different x0 and x1 values.");
+                                    read_input("\npress enter to continue...");
+                                    continue; // Skip the API call and go back to method selection
+                                }
+                            } else {
+                                println!("\nWarning: Could not parse x0 or x1 as numbers for linearInterpolate. Please ensure valid numeric inputs.");
+                                read_input("\npress enter to continue...");
+                                continue;
+                            }
+                        }
+
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
                             Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
                             Err(e) => println!("error: {}", e),
