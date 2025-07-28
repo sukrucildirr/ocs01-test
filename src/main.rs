@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<serde_json::Value> {
+) -> Result<Option<String>> {
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -104,11 +104,19 @@ fn view_call(
             "caller": caller
         }))
     )?;
-    
+
     if response["status"] == "success" {
-        Ok(response["result"].clone())
+        let result = &response["result"];
+        let result_str = match result {
+            serde_json::Value::String(s) => s.clone(),
+            serde_json::Value::Null => "null".to_string(),
+            _ => result.to_string(),
+        };
+        Ok(Some(result_str))
     } else {
-        bail!("view call failed: {}", response["error"].as_str().unwrap_or("unknown error"));
+        let reason = response["reason"].as_str().unwrap_or("unknown error");
+        eprintln!("View call failed: {}", reason);
+        Ok(None)
     }
 }
 
@@ -240,16 +248,13 @@ fn main() -> Result<()> {
                 
                 match method.method_type.as_str() {
                     "view" => {
-                        match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                            Ok(result) => {
-                                if result.is_null() {
-                                    println!("\nresult: none");
-                                } else {
-                                    println!("\nresult: {}", result);
-                                }
-                            },
-                            Err(e) => println!("error: {}", e),
-                        }
+                        match view_call(...) {
+    Ok(result) => {
+        let result_display = result.unwrap_or_else(|| "none".to_string());
+        println!("\nresult: {}", result_display);
+    }
+    Err(e) => println!("error: {}", e),
+}
                     }
                     "call" => {
                         match call_contract(&client, &wallet.rpc, &sk, &wallet.addr, &interface.contract, &method.name, &params) {
