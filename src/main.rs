@@ -106,14 +106,7 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        // Handle different types of results
-        match &response["result"] {
-            serde_json::Value::String(s) => Some(s.clone()),
-            serde_json::Value::Number(n) => Some(n.to_string()),
-            serde_json::Value::Bool(b) => Some(b.to_string()),
-            serde_json::Value::Null => Some("null".to_string()),
-            _ => Some(response["result"].to_string())
-        }
+        response["result"].as_str().map(|s| s.to_string())
     } else {
         None
     })
