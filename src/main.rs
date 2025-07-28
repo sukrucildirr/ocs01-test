@@ -241,8 +241,7 @@ fn main() -> Result<()> {
                 match method.method_type.as_str() {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-    Ok(Some(result)) => println!("\nresult: {}", result),
-    Ok(None) => println!("\nresult: none"),
+                        Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
                             Err(e) => println!("error: {}", e),
                         }
                     }
