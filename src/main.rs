@@ -94,7 +94,7 @@ fn view_call(
     params: &[String],
     caller: &str
 ) -> Result<Option<String>> {
-    let response: Value = api_call(
+    let response: serde_json::Value = api_call(
         client,
         "POST",
         &format!("{}/contract/call-view", api_url),
@@ -106,38 +106,40 @@ fn view_call(
         }))
     )?;
 
+    // 🔥 DEBUG: Print the full response
+    eprintln!("🔍 DEBUG: Full API response for '{}' ->", method);
+    eprintln!("{}", serde_json::to_string_pretty(&response).unwrap());
+
     if response["status"] == "success" {
-        let clean_result = match &response["result"] {
-            // Case 1: It's a JSON string — but might be a number/bool in disguise
+        let result_value = &response["result"];
+
+        eprintln!("🔍 result type: {:?}", result_value);
+        eprintln!("🔍 result .to_string() = {}", result_value.to_string());
+
+        let clean_result = match result_value {
             Value::String(s) => {
-                // Try to parse as number
+                // If it looks like a number or bool, show it raw
                 if s.parse::<f64>().is_ok() {
-                    s.clone() // e.g. "120" → "120" (but don't add quotes)
-                } else if s == "true" || s == "false" {
-                    s.clone() // e.g. "true" → "true"
-                } else {
-                    // It's a real string, maybe wrap in quotes?
-                    // Or just show raw? Let's show raw for now.
                     s.clone()
+                } else if s == "true" || s == "false" {
+                    s.clone()
+                } else {
+                    s.clone() // just pass through
                 }
             }
-            // Case 2: It's a JSON number (e.g. 120)
             Value::Number(n) => n.to_string(),
-            // Case 3: Boolean
             Value::Bool(b) => b.to_string(),
-            // Case 4: Null
             Value::Null => "null".to_string(),
-            // Case 5: Arrays, objects — convert to compact JSON
-            other => other.to_string(), // e.g. "[1,2,3]"
+            _ => result_value.to_string(), // fallback
         };
+
         Ok(Some(clean_result))
     } else {
         let err_msg = response["message"]
             .as_str()
             .or_else(|| response["error"].as_str())
             .unwrap_or("unknown error");
-        eprintln!("Call failed: {}", err_msg);
-        eprintln!("Response: {}", response);
+        eprintln!("❌ Call failed: {}", err_msg);
         Ok(None)
     }
 }
