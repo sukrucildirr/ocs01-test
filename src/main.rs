@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<Option<serde_json::Value>> {
+) -> Result<Option<String>> {
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -106,7 +106,8 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        Some(response["result"].clone())
+        let result = response["result"].clone();
+        Some(result.to_string())
     } else {
         None
     })
@@ -241,7 +242,7 @@ fn main() -> Result<()> {
                 match method.method_type.as_str() {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, &params, &wallet.addr) {
-                        Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
+                            Ok(result) => println!("\nresult: {}", result.unwrap_or_else(|| "none".to_string())),
                             Err(e) => println!("error: {}", e),
                         }
                     }
