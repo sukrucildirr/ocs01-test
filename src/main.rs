@@ -92,7 +92,7 @@ fn view_call(
     method: &str,
     params: &[String],
     caller: &str
-) -> Result<Option<serde_json::Value>> {  // Change return type to Value
+) -> Result<Option<serde_json::Value>> {
     let response: serde_json::Value = api_call(
         client,
         "POST",
@@ -106,7 +106,10 @@ fn view_call(
     )?;
     
     Ok(if response["status"] == "success" {
-        Some(response["result"].clone())  // Return the JSON value directly
+        // Try to parse the result as JSON first (in case it's a stringified JSON)
+        serde_json::from_str::<serde_json::Value>(response["result"].as_str().unwrap_or("null"))
+            .ok()  // If parsing fails, return the raw result
+            .or(Some(response["result"].clone()))
     } else {
         None
     })
@@ -242,13 +245,10 @@ fn main() -> Result<()> {
                     "view" => {
                         match view_call(&client, &wallet.rpc, &interface.contract, &method.name, ¶ms, &wallet.addr) {
     Ok(Some(result)) => {
-        // Handle different result types
-        let display_result = if result.is_boolean() {
-            result.as_bool().unwrap().to_string()
-        } else if result.is_string() {
-            result.as_str().unwrap().to_string()
-        } else {
-            format!("{:?}", result)
+        let display_result = match result {
+            serde_json::Value::String(s) => s,  // Already unescaped
+            serde_json::Value::Bool(b) => b.to_string(),
+            _ => result.to_string(),  // Fallback for numbers/objects
         };
         println!("\nresult: {}", display_result);
     },
